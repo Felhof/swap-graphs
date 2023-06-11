@@ -55,11 +55,11 @@ class FastActivationStore(ActivationStore):
             dataset_logits = self.model(self.dataset)
 
         n_inputs = self.dataset.shape[0]
-        batch_size = 294 # batch size must be a multiple of n_inputs - 1
+        batch_size = n_inputs - 1 # batch size must be a multiple of n_inputs - 1
 
         # TODO: make this work for dimensions of generic components
         self.grad_caches = {
-            c.hook_name: torch.zeros((50, 21, 64), device="cuda")
+            c.hook_name: torch.zeros((n_inputs, 21, 64), device="cuda")
             for c in self.listOfComponents
         }
         input_idx = 0
@@ -72,6 +72,9 @@ class FastActivationStore(ActivationStore):
                 i : min(i + batch_size, len(self.target_ids))
             ]  # The index of the datapoints that the majority of the model will run on
 
+            gc.collect()
+            torch.cuda.empty_cache()
+
             comparison_result = self.comp_metric(
                     logits_target=dataset_logits[target_idx],
                     logits_source=dataset_logits[source_idx].clone().detach(),
@@ -79,16 +82,26 @@ class FastActivationStore(ActivationStore):
                     target_idx=target_idx
             )
 
-            for idx in range(0, comparison_result.shape[0], n_inputs-1):
-                results_for_token = comparison_result[idx: idx+n_inputs-1]
-                results_for_token.mean().backward(retain_graph= True)
-                for c in self.listOfComponents:
-                    self.grad_caches[c.hook_name][input_idx] = grad_cache[c.hook_name][input_idx,:,c.head,:]
-                grad_cache = {}
-                input_idx += 1
-                for param in self.model.parameters():
-                    if param.grad is not None:
-                        param.grad.zero_()
+            comparison_result.mean().backward(retain_graph= True)
+            for c in self.listOfComponents:
+                self.grad_caches[c.hook_name][input_idx] = grad_cache[c.hook_name][input_idx,:,c.head,:]
+            grad_cache = {}
+            input_idx += 1
+            for param in self.model.parameters():
+                if param.grad is not None:
+                    param.grad.zero_()
+
+
+            # for idx in range(0, comparison_result.shape[0], n_inputs-1):
+            #     results_for_token = comparison_result[idx: idx+n_inputs-1]
+            #     results_for_token.mean().backward(retain_graph= True)
+            #     for c in self.listOfComponents:
+            #         self.grad_caches[c.hook_name][input_idx] = grad_cache[c.hook_name][input_idx,:,c.head,:]
+            #     grad_cache = {}
+            #     input_idx += 1
+            #     for param in self.model.parameters():
+            #         if param.grad is not None:
+            #             param.grad.zero_()
 
         self.activation_cache = ActivationCache(forward_cache, self.model)
         self.dataset_logits = dataset_logits  # type: ignore
