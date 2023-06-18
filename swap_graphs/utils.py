@@ -297,6 +297,25 @@ def KL_div_sim(
         dim=-1
     )
 
+def KL_div_pos(
+    logits_target: Float[torch.Tensor, "batch vocab"],
+    logits_source: Float[torch.Tensor, "batch vocab"],
+    target_seqs: torch.Tensor = None,
+    target_idx: Optional[List[int]] = None,
+):
+    log_probs_target = torch.nn.functional.log_softmax(
+        logits_target,
+        dim=-1,  # log_softmax
+    )
+
+    log_probs_source = torch.nn.functional.log_softmax(  # log_softmax
+        logits_source,
+        dim=-1,
+    )
+
+    return (torch.exp(log_probs_source) * (log_probs_source - log_probs_target)).sum(
+        dim=-1
+    )
 
 def get_top_k_probs(logits, k):
     probs = torch.nn.functional.softmax(logits[:], dim=-1)

@@ -1,4 +1,10 @@
 # %%
+import inspect, os, sys
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
+
+# %%
 from functools import partial
 
 # from sympy import expand, symbols
@@ -22,15 +28,13 @@ import numpy as np
 
 torch.set_grad_enabled(False)
 # %%
-
-# %%
 ### Install the model
 model = HookedTransformer.from_pretrained("gpt2-small", device="cuda")
 
 # %%
 ### Create an IOI dataset with 50 sequences and 5 possible names
 
-ioi_dataset = IOIDataset(N=50, seed=42, nb_names=5)
+ioi_dataset = IOIDataset(N=100, seed=42, nb_names=5)
 # %%
 for s in ioi_dataset.prompts_text[:10]:
   print(s)
@@ -72,7 +76,8 @@ def create_swap_graph_with_activation_patching(
         name,
         plot_histograms=True, 
         compute_communities=True,
-        PATCHED_POSITION = "END"
+        PATCHED_POSITION = "END",
+        abstract_variable = "IO token"
     ):
 
     position = WildPosition(ioi_dataset.word_idx[PATCHED_POSITION], label=PATCHED_POSITION)
@@ -121,7 +126,7 @@ def create_swap_graph_with_activation_patching(
             print(f"Feature: {f} - Adjusted Rand index: {metrics['rand'][f]:2f}")
         print()
 
-        title = f"{sgraph.patchedComponents[0]} swap graph. gpt2-small. <br>Adjused Rand index with 'IO token': {metrics['rand']['IO token']:.2f} "
+        title = f"{sgraph.patchedComponents[0]} swap graph. gpt2-small. <br>Adjused Rand index with '{abstract_variable}': {metrics['rand'][abstract_variable]:.2f} "
     else:
         title = f"{sgraph.patchedComponents[0]} swap graph. gpt2-small."
         sgraph.commu_labels = {}
@@ -152,7 +157,8 @@ create_swap_graph_with_activation_patching(
     layer=9,
     head=9,
     name="q",
-    compute_communities=False
+    compute_communities=True,
+    abstract_variable="Order of first names"
 )
 # %%
 create_swap_graph_with_activation_patching(
@@ -167,3 +173,5 @@ create_swap_graph_with_activation_patching(
     name="z",
     PATCHED_POSITION="S2"
 )
+
+# %%

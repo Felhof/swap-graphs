@@ -1,4 +1,10 @@
 # %%
+import inspect, os, sys
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
+
+# %%
 from functools import partial
 
 # from sympy import expand, symbols
@@ -15,12 +21,10 @@ from swap_graphs.core import (
 from swap_graphs.fast_swap_graphs import FastSwapGraph
 from swap_graphs.datasets.ioi.ioi_dataset import NAMES_GENDER, IOIDataset
 from swap_graphs.datasets.ioi.ioi_utils import get_ioi_features_dict
-from swap_graphs.utils import KL_div_sim, plotHistLogLog
+from swap_graphs.utils import KL_div_sim, KL_div_pos, plotHistLogLog
 from torch.utils.data import DataLoader
-from transformer_lens import HookedTransformer
-
-# %%
-
+from transformer_lens import utils, HookedTransformer
+import numpy as np
 # %%
 ### Install the model
 torch.set_grad_enabled(True)
@@ -29,7 +33,8 @@ model = HookedTransformer.from_pretrained("gpt2-small", device="cuda")
 # %%
 ### Create an IOI dataset with 50 sequences and 5 possible names
 
-ioi_dataset = IOIDataset(N=400, seed=42, nb_names=5)
+ioi_dataset = IOIDataset(N=100, seed=42, nb_names=5)
+
 # %%
 for s in ioi_dataset.prompts_text[:10]:
   print(s)
@@ -53,7 +58,7 @@ sgraph_dataset = SgraphDataset(
     str_dataset=ioi_dataset.prompts_text,
     feature_dict=feature_dict,
 )
-# %%
+
 # %% 
 def create_swap_graph_with_attribution_patching(
         layer,
@@ -61,15 +66,13 @@ def create_swap_graph_with_attribution_patching(
         name,
         plot_histograms=True, 
         compute_communities=True,
-        PATCHED_POSITION = "END"
+        PATCHED_POSITION = "END",
+        abstract_variable = "IO token"
     ):
 
     position = WildPosition(ioi_dataset.word_idx[PATCHED_POSITION], label=PATCHED_POSITION)
 
-    comp_metric: CompMetric = partial(
-        KL_div_sim,
-        position_to_evaluate=position,  
-    )
+    comp_metric: CompMetric = KL_div_pos
 
     fast_sgraph = FastSwapGraph(
         model=model,
@@ -108,7 +111,7 @@ def create_swap_graph_with_attribution_patching(
             print(f"Feature: {f} - Adjusted Rand index: {metrics['rand'][f]:2f}")
         print()
 
-        title = f"{fast_sgraph.patchedComponents[0]} swap graph. gpt2-small. <br>Adjused Rand index with 'IO token': {metrics['rand']['IO token']:.2f} "
+        title = f"{fast_sgraph.patchedComponents[0]} swap graph. gpt2-small. <br>Adjused Rand index with '{abstract_variable}': {metrics['rand'][abstract_variable]:.2f} "
     else:
         title = f"{fast_sgraph.patchedComponents[0]} swap graph. gpt2-small."
         fast_sgraph.commu_labels = {}
@@ -138,7 +141,8 @@ create_swap_graph_with_attribution_patching(
     layer=9,
     head=9,
     name="q",
-    compute_communities=False
+    compute_communities=True,
+    abstract_variable="Order of first names"
 )
 # %%
 create_swap_graph_with_attribution_patching(
@@ -153,3 +157,5 @@ create_swap_graph_with_attribution_patching(
     name="z",
     PATCHED_POSITION="S2"
 )
+
+# %%
