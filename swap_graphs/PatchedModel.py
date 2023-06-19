@@ -58,6 +58,7 @@ from swap_graphs.core import (
     find_important_components,
     compute_clustering_metrics,
     NOT_A_HEAD,
+    get_components_at_position,
 )
 
 from swap_graphs.utils import (
@@ -71,7 +72,6 @@ from swap_graphs.utils import (
     save_object,
     scatter,
     show_attn,
-    get_components_at_position,
     load_object,
     show_mtx,
     component_name_to_idx,

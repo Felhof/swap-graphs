@@ -47,6 +47,7 @@ from swap_graphs.core import (
     find_important_components,
     SgraphDataset,
     compute_clustering_metrics,
+    get_components_at_position,
 )
 from torch.utils.data import DataLoader
 from transformer_lens import (
@@ -72,7 +73,6 @@ from swap_graphs.utils import (
     save_object,
     scatter,
     show_attn,
-    get_components_at_position,
     load_object,
     show_mtx,
     component_name_to_idx,

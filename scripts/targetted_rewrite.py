@@ -58,6 +58,7 @@ from swap_graphs.core import (
     break_long_str,
     compute_clustering_metrics,
     find_important_components,
+    get_components_at_position,
 )
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.manifold import TSNE
@@ -89,7 +90,6 @@ from swap_graphs.utils import (
     compo_name_to_object,
     component_name_to_idx,
     create_random_communities,
-    get_components_at_position,
     imshow,
     line,
     load_object,

@@ -333,36 +333,6 @@ def load_object(path, name):
         return pickle.load(f)
 
 
-def get_components_at_position(
-    position: WildPosition,
-    nb_layers: int,
-    nb_heads: int,
-    head_subpart: str = "z",
-    include_mlp: bool = True,
-) -> List[ModelComponent]:
-    """Return the list of model components corresponding to the MLP blocks and attention heads at a given position."""
-    components_to_search = []
-    for l in range(nb_layers):
-        for h in range(nb_heads):
-            components_to_search.append(
-                ModelComponent(
-                    position=position,
-                    layer=l,
-                    name=head_subpart,
-                    head=h,
-                )
-            )
-        if include_mlp:
-            components_to_search.append(
-                ModelComponent(
-                    position=position,
-                    layer=l,
-                    name="mlp",
-                )
-            )
-    return components_to_search
-
-
 def wrap_str(s: str, max_line_len=100):
     """Add skip line every max_line_len characters. Ensure that no word is cut in the middle."""
     words = s.split(" ")

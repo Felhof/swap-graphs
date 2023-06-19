@@ -1,5 +1,6 @@
 # %%
 import inspect, os, sys
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
@@ -13,6 +14,7 @@ import torch
 import tqdm.auto as tqdm
 from swap_graphs.core import (
     CompMetric,
+    FastActivationStore,
     ModelComponent,
     SgraphDataset,
     SwapGraph,
@@ -58,8 +60,56 @@ sgraph_dataset = SgraphDataset(
     str_dataset=ioi_dataset.prompts_text,
     feature_dict=feature_dict,
 )
+# %%
+PATCHED_POSITION = "END"
+position = WildPosition(ioi_dataset.word_idx[PATCHED_POSITION], label=PATCHED_POSITION)
 
+comp_metric: CompMetric = KL_div_pos
+
+activation_store = FastActivationStore(
+   model=model,
+   dataset=ioi_dataset.prompts_tok,
+   comp_metric=comp_metric,
+   position_to_patch=position,
+)
 # %% 
+fast_sgraph = FastSwapGraph(
+    model=model,
+    tok_dataset=ioi_dataset.prompts_tok,
+    comp_metric=comp_metric,
+    batch_size=300,
+    proba_edge=1.0, # proportion of pairs of inputs to run swaps on.
+    patchedComponents=[
+        ModelComponent(
+            position=position,
+            layer=9,
+            head=9,
+            name="z",
+        )
+    ],
+)
+fast_sgraph.build(activation_store=activation_store)
+fast_sgraph.compute_weights()
+fast_sgraph.compute_communities()
+# We use the Louvain communities to compute the adjusted rand index with the features from sgraph_dataset
+metrics = sgraph_dataset.compute_feature_rand(fast_sgraph)
+
+for f in metrics["rand"]:
+    print(f"Feature: {f} - Adjusted Rand index: {metrics['rand'][f]:2f}")
+fig = fast_sgraph.show_html(
+    title=f"{fast_sgraph.patchedComponents[0]} swap graph. gpt2-small. <br>Adjused Rand index with 'IO token': {metrics['rand']['IO token']:.2f} ",
+    sgraph_dataset=sgraph_dataset,
+    feature_to_show="all",
+    display=False,
+    recompute_positions=True,
+    iterations=1000,
+)
+
+fig.update_layout(height=700, width=700)
+
+fig.show()
+
+# %%
 def create_swap_graph_with_attribution_patching(
         layer,
         head,

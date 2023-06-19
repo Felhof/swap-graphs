@@ -3,7 +3,7 @@ import numpy as np
 import tqdm
 import gc
 from swap_graphs.core import CompMetric, ModelComponent, WildPosition, component_patching_hook
-from swap_graphs.utils import get_components_at_position
+from swap_graphs.core import get_components_at_position
 
 import torch
 from attrs import define, field
