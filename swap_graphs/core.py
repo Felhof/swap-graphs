@@ -34,8 +34,6 @@ from sklearn.metrics.cluster import (
 )
 from torch.utils.data import DataLoader
 from transformer_lens import (
-    ActivationCache,
-    FactoredMatrix,
     HookedTransformer,
     HookedTransformerConfig,
 )
@@ -48,6 +46,8 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from typing import Protocol, Literal
 import os
+
+from swap_graphs.activation_store import ActivationStore
 
 
 def dict_val_to_str(
@@ -271,89 +271,6 @@ def component_patching_hook(
                 i, component.position.positions_from_idx(source_idx)[i], :
             ]
     return z
-
-
-@define
-class ActivationStore:
-    """Stores the activations of a model for a given dataset (the patched dataset), and create hooks to patch the activations of a given component (head, layer, etc)."""
-
-    model: HookedTransformer = field(kw_only=True)
-    dataset: Float[torch.Tensor, "batch pos"] = field(kw_only=True)
-    listOfComponents: Optional[List[ModelComponent]] = field(kw_only=True, default=None)
-    force_cache_all: bool = field(kw_only=True, default=False)
-    dataset_logits: Float[torch.Tensor, "batch pos vocab"] = field(init=False)
-    transformerLensCache: Dict[str, torch.Tensor] | ActivationCache = field(init=False)
-
-    def compute_cache(self):
-        if self.listOfComponents is None or self.force_cache_all:
-            dataset_logits, cache = self.model.run_with_cache(
-                self.dataset
-            )  # default, but memory inneficient
-        else:
-            cache = {}
-
-            def save_hook(tensor, hook):
-                cache[hook.name] = tensor.detach().to("cuda")
-
-            dataset_logits = (
-                self.model.run_with_hooks(  # only cache the components we need
-                    self.dataset,
-                    fwd_hooks=[(c.hook_name, save_hook) for c in self.listOfComponents],
-                )
-            )
-        self.transformerLensCache = cache
-        self.dataset_logits = dataset_logits  # type: ignore
-
-    def __attrs_post_init__(self):
-        self.compute_cache()
-
-    def getPatchingHooksByIdx(
-        self,
-        source_idx: List[int],
-        target_idx: List[int],
-        verbose: bool = False,
-        list_of_components: Optional[List[ModelComponent]] = None,
-    ):
-        """Create a list of hook function where the cache is computed from the stored dataset cache on the indices idx."""
-        assert source_idx is not None
-        assert max(source_idx) < self.dataset.shape[0]
-        patchingHooks = []
-
-        if (
-            list_of_components is None
-        ):  # TODO : quite dirty, remove the listOfComponents attribute
-            list_of_components = self.listOfComponents
-
-        assert list_of_components is not None
-
-        for component in list_of_components:
-            patchingHooks.append(
-                (
-                    component.hook_name,
-                    partial(
-                        component_patching_hook,
-                        component=component,
-                        cache=self.transformerLensCache[component.hook_name][
-                            source_idx
-                        ],
-                        source_idx=source_idx,
-                        target_idx=target_idx,
-                        verbose=verbose,
-                    ),
-                )
-            )
-
-        return patchingHooks
-
-    def change_component_list(self, new_list):
-        """Change the list of components to patch. Update the cache accordingly (only when needed)."""
-        if self.listOfComponents is not None and not self.force_cache_all:
-            if [c.hook_name for c in new_list] != [
-                c.hook_name for c in self.listOfComponents
-            ]:
-                self.listOfComponents = new_list
-                self.compute_cache()  # only recompute when the list changed and when the cache is partial
-        self.listOfComponents = new_list
 
 
 def compute_batched_weights(
@@ -918,3 +835,4 @@ def find_important_components(
         output_shape = (len(components_to_search), nb_samples)
 
     return results
+
