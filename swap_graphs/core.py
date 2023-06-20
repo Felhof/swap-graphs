@@ -422,7 +422,7 @@ class FastActivationStore(BaseActivationStore):
     def _calculate_weights(self):
         assert self.listOfComponents is not None, "Must specify components to calculate weights."
         self.weights = {
-            c.hook_name : [] for c in self.listOfComponents
+            str(c) : [] for c in self.listOfComponents
         }
 
         n_inputs = self.dataset.shape[0]
@@ -467,7 +467,7 @@ class FastActivationStore(BaseActivationStore):
                 target_weights = torch.where(target_weights >= 0., target_weights, torch.zeros_like(target_weights))
                 target_weights = einops.reduce(target_weights, "... d -> ...", "sum")
 
-                self.weights[c.hook_name].extend(target_weights.tolist())
+                self.weights[str(c)].extend(target_weights.tolist())
 
             self.grad_cache = {}
             for param in self.model.parameters():

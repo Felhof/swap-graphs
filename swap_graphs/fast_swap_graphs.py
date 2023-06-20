@@ -139,7 +139,7 @@ class FastSwapGraph(SwapGraph):
         self,
         activation_store: FastActivationStore,
     ):
-        weights = activation_store.get_weights(self.patchedComponents[0].hook_name)
+        weights = activation_store.get_weights(str(self.patchedComponents[0]))
 
         self.raw_edges = list(
             zip(activation_store.source_ids, activation_store.target_ids, weights)

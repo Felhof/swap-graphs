@@ -65,8 +65,24 @@ PATCHED_POSITION = "END"
 position = WildPosition(ioi_dataset.word_idx[PATCHED_POSITION], label=PATCHED_POSITION)
 
 comp_metric: CompMetric = KL_div_pos
+# %%
 
 activation_store = FastActivationStore(
+   model=model,
+   dataset=ioi_dataset.prompts_tok,
+   comp_metric=comp_metric,
+   position_to_patch=position,
+   listOfComponents=[
+        ModelComponent(
+            position=position,
+            layer=9,
+            head=9,
+            name="z",
+        )
+    ]
+)
+# %%
+activation_store2 = FastActivationStore(
    model=model,
    dataset=ioi_dataset.prompts_tok,
    comp_metric=comp_metric,
@@ -82,13 +98,13 @@ fast_sgraph = FastSwapGraph(
     patchedComponents=[
         ModelComponent(
             position=position,
-            layer=9,
-            head=9,
+            layer=8,
+            head=6,
             name="z",
         )
     ],
 )
-fast_sgraph.build(activation_store=activation_store)
+fast_sgraph.build(activation_store=activation_store2)
 fast_sgraph.compute_weights()
 fast_sgraph.compute_communities()
 # We use the Louvain communities to compute the adjusted rand index with the features from sgraph_dataset
