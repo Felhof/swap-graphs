@@ -72,14 +72,14 @@ activation_store = FastActivationStore(
    dataset=ioi_dataset.prompts_tok,
    comp_metric=comp_metric,
    position_to_patch=position,
-   listOfComponents=[
-        ModelComponent(
-            position=position,
-            layer=9,
-            head=9,
-            name="z",
-        )
-    ]
+#    listOfComponents=[
+#         ModelComponent(
+#             position=position,
+#             layer=9,
+#             head=9,
+#             name="z",
+#         )
+#     ]
 )
 # %%
 activation_store2 = FastActivationStore(
@@ -104,7 +104,7 @@ fast_sgraph = FastSwapGraph(
         )
     ],
 )
-fast_sgraph.build(activation_store=activation_store2)
+fast_sgraph.build(activation_store=activation_store)
 fast_sgraph.compute_weights()
 fast_sgraph.compute_communities()
 # We use the Louvain communities to compute the adjusted rand index with the features from sgraph_dataset
